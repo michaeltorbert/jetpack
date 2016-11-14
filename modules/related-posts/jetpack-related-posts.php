@@ -1266,7 +1266,12 @@ EOT;
 	 */
 	protected function _enqueue_assets( $script, $style ) {
 		if ( $script ) {
-			wp_enqueue_script( 'jetpack_related-posts', plugins_url( 'related-posts.js', __FILE__ ), array( 'jquery' ), self::VERSION );
+			wp_enqueue_script(
+				'jetpack_related-posts',
+				plugins_url( 'js/related-posts.min.js', JETPACK__PLUGIN_FILE ),
+				array( 'jquery' ),
+				self::VERSION
+			);
 			$related_posts_js_options = array(
 				/**
 				 * Filter each Related Post Heading structure.

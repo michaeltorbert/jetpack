@@ -40,6 +40,7 @@ class Jetpack_Options {
 				'safe_mode_confirmed',         // (bool) True if someone confirms that this site was correctly put into safe mode automatically after an identity crisis is discovered.
 				'migrate_for_idc',             // (bool) True if someone confirms that this site should migrate stats and subscribers from its previous URL
 				'connection_banner_ab',        // (int) 1 or 2, which will represent which connection banner to show.
+				'feature_rollout',             // (array) An arrayof features that are enabled or disabled.
 			);
 
 		case 'private' :

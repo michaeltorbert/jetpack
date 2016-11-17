@@ -7,47 +7,59 @@
 		notice = $( '.jp-idc-notice' ),
 		idcButtons = $( '.jp-idc-notice .dops-button' ),
 		tracksUser = idcL10n.tracksUserData,
+		tracksEvent = idcL10n.tracksEventData,
 		adminBarMenu = $( '#wp-admin-bar-jetpack-idc' ),
 		confirmSafeModeButton = $( '#jp-idc-confirm-safe-mode-action' ),
 		fixConnectionButton = $( '#jp-idc-fix-connection-action' ),
-		reconnectButton  = $( '#jp-idc-reconnect-site-action' ),
-		migrateButton = $( '#jp-idc-migrate-action' );
-
+		migrateButton = $( '#jp-idc-migrate-action'),
+		reconnectButton = $( '#jp-idc-reconnect-site-action' ),
+		errorNotice = $( '.jp-idc-error__notice'),
+		erroredAction = false;
 
 	// Initialize Tracks and bump stats.
 	analytics.initialize( tracksUser.userid, tracksUser.username );
-	trackAndBumpMCStats( 'notice_view' );
+	if ( tracksEvent.isAdmin ) {
+		trackAndBumpMCStats( 'notice_view' );
+	} else {
+		trackAndBumpMCStats( 'non_admin_notice_view', { 'page': tracksEvent.currentScreen } );
+	}
 	clearConfirmationArgsFromUrl();
 
 	// If the user dismisses the notice, set a cookie for one week so we don't display it for that time.
 	notice.on( 'click.wp-dismiss-notice', function() {
 		var secure = ( 'https:' === window.location.protocol );
 		wpCookies.set( 'jetpack_idc_dismiss_notice', '1', 7 * 24 * 60 * 60, false, false, secure );
+		trackAndBumpMCStats( 'non_admin_notice_dismiss', { 'page': tracksEvent.currentScreen } );
+	} );
+
+	notice.on( 'click', '#jp-idc-error__action', function() {
+		errorNotice.hide();
+		switch( erroredAction ) {
+			case 'confirm':
+				confirmSafeMode();
+				break;
+			case 'start-fresh':
+				startFreshConnection();
+				break;
+			case 'migrate':
+				migrateStatsAndSubscribers();
+				break;
+			default:
+				return;
+		}
 	} );
 
 	// Confirm Safe Mode
-	confirmSafeModeButton.click( function() {
-		trackAndBumpMCStats( 'confirm_safe_mode' );
-		confirmSafeMode();
-	} );
+	confirmSafeModeButton.on( 'click', confirmSafeMode );
 
-	// Goes to second step of the notice.
-	fixConnectionButton.click( function() {
-		trackAndBumpMCStats( 'fix_connection' );
-		fixJetpackConnection();
-	} );
+	// Fix connection
+	fixConnectionButton.on( 'click', fixJetpackConnection );
 
-	// Starts process to create a new connection.
-	reconnectButton.click( function() {
-		trackAndBumpMCStats( 'start_fresh' );
-		startFreshConnection();
-	} );
+	// Start fresh connection
+	reconnectButton.on( 'click', startFreshConnection );
 
 	// Starts migration process.
-	migrateButton.click( function() {
-		trackAndBumpMCStats( 'migrate' );
-		migrateStatsAndSubscribers();
-	} );
+	migrateButton.on( 'click', migrateStatsAndSubscribers );
 
 	function disableDopsButtons() {
 		idcButtons.prop( 'disabled', true );
@@ -78,6 +90,9 @@
 	}
 
 	function confirmSafeMode() {
+		errorNotice.hide();
+		trackAndBumpMCStats( 'confirm_safe_mode' );
+
 		var route = restRoot + 'jetpack/v4/identity-crisis/confirm-safe-mode';
 		disableDopsButtons();
 		$.ajax( {
@@ -96,13 +111,18 @@
 					window.location.reload();
 				}
 			},
-			error: function() {
+			error: function( error ) {
+				erroredAction = 'confirm';
+				displayErrorNotice( error );
 				enableDopsButtons();
 			}
 		} );
 	}
 
 	function migrateStatsAndSubscribers() {
+		errorNotice.hide();
+		trackAndBumpMCStats( 'migrate' );
+
 		var route = restRoot + 'jetpack/v4/identity-crisis/migrate';
 		disableDopsButtons();
 		$.ajax( {
@@ -120,13 +140,17 @@
 					window.location.reload( true );
 				}
 			},
-			error: function() {
+			error: function( error ) {
+				erroredAction = 'migrate';
+				displayErrorNotice( error );
 				enableDopsButtons();
 			}
 		} );
 	}
 
 	function fixJetpackConnection() {
+		errorNotice.hide();
+		trackAndBumpMCStats( 'fix_connection' );
 		notice.addClass( 'jp-idc-show-second-step' );
 	}
 
@@ -135,6 +159,9 @@
 	 * connection auth flow after appending a specific 'from=' param for tracking.
 	 */
 	function startFreshConnection() {
+		errorNotice.hide();
+		trackAndBumpMCStats( 'start_fresh' );
+
 		var route = restRoot + 'jetpack/v4/identity-crisis/start-fresh';
 		disableDopsButtons();
 		$.ajax( {
@@ -148,10 +175,27 @@
 				// Add a from param and take them to connect.
 				window.location = connectUrl + '&from=idc-notice';
 			},
-			error: function() {
+			error: function( error ) {
+				erroredAction = 'start-fresh';
+				displayErrorNotice( error );
 				enableDopsButtons();
 			}
 		} );
+	}
+
+	/**
+	 * Displays an error message from the REST endpoints we're hitting.
+	 *
+	 * @param error {Object} Object containing the errored response from the API
+	 */
+	function displayErrorNotice( error ) {
+		var errorDescription = $( '.jp-idc-error__desc' );
+		if ( error && error.responseJSON && error.responseJSON.message ) {
+			errorDescription.html( error.responseJSON.message );
+		} else {
+			errorDescription.html( '' );
+		}
+		errorNotice.css( 'display', 'flex' );
 	}
 
 	/**
@@ -162,14 +206,18 @@
 	 * MC: Will not be prefixed, and will use dashes.
 	 *
 	 * @param eventName string
+	 * @param extraProps object
 	 */
-	function trackAndBumpMCStats( eventName ) {
-		if ( 'undefined' !== eventName && eventName.length ) {
+	function trackAndBumpMCStats( eventName, extraProps ) {
+		if ( 'undefined' === typeof extraProps || 'object' !== typeof extraProps ) {
+			extraProps = {};
+		}
 
+		if ( eventName && eventName.length ) {
 			// Format for Tracks
 			eventName = eventName.replace( /-/g, '_' );
 			eventName = eventName.indexOf( 'jetpack_idc_' ) !== 0 ? 'jetpack_idc_' + eventName : eventName;
-			analytics.tracks.recordEvent( eventName, {} );
+			analytics.tracks.recordEvent( eventName, extraProps );
 
 			// Now format for MC stats
 			eventName = eventName.replace( 'jetpack_idc_', '' );

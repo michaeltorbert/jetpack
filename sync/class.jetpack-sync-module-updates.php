@@ -49,13 +49,13 @@ class Jetpack_Sync_Module_Updates extends Jetpack_Sync_Module {
 
 		$checksum = $this->get_check_sum( $value );
 
-		$checksums = get_option( $this::UPDATES_CHECKSUM_OPTION_NAME, array() );
+		$checksums = get_option( self::UPDATES_CHECKSUM_OPTION_NAME, array() );
 		if ( isset( $checksums[ $transient ] ) && $checksums[ $transient ] === $checksum ) {
 			return;
 		}
 		$checksums[ $transient ] = $checksum;
 
-		update_option( $this::UPDATES_CHECKSUM_OPTION_NAME, $checksums );
+		update_option( self::UPDATES_CHECKSUM_OPTION_NAME, $checksums );
 
 		do_action( "jetpack_{$transient}_change", $value );
 	}

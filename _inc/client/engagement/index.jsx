@@ -103,29 +103,27 @@ export const Engagement = ( props ) => {
 			},
 			isModuleActive = isModuleActivated( element[0] );
 
-		if ( isPro && 'undefined' !== typeof props.sitePlan.product_slug && props.sitePlan.product_slug !== 'jetpack_business' ) {
-
-			toggle = <ProStatus proFeature={ element[0] } />;
-
-			// Add a "pro" button next to the header title
-			element[1] = <span>
-				{ element[1] }
-				<Button
-					compact={ true }
-					href="#/plans"
-				>
-					{ __( 'Pro' ) }
-				</Button>
-			</span>;
-		}
-
 		if ( unavailableInDevMode ) {
 			toggle = __( 'Unavailable in Dev Mode' );
 		} else if ( isAdmin ) {
-			toggle = <ModuleToggle slug={ element[0] }
-						activated={ isModuleActive }
-						toggling={ isTogglingModule( element[0] ) }
-						toggleModule={ toggleModule } />;
+			if ( isPro && 'undefined' !== typeof props.sitePlan.product_slug && props.sitePlan.product_slug !== 'jetpack_business' ) {
+				toggle = <ProStatus proFeature={ element[0] } />;
+			} else if ( ! isPro || ( 'undefined' !== typeof props.sitePlan.product_slug && props.sitePlan.product_slug === 'jetpack_business' ) ) {
+				toggle = <ModuleToggle slug={ element[0] }
+									   activated={ isModuleActive }
+									   toggling={ isTogglingModule( element[0] ) }
+									   toggleModule={ toggleModule } />;
+			}
+
+			if ( isPro ) {
+				// Add a "pro" button next to the header title
+				element[1] = <span>
+								{ element[1] }
+								<Button compact={ true } href="#/plans">
+									{ __( 'Pro' ) }
+								</Button>
+							 </span>;
+			}
 		}
 
 		let moduleDescription = isModuleActive ?
@@ -166,37 +164,40 @@ export const Engagement = ( props ) => {
 				{
 					moduleDescription
 				}
-				<div className="jp-module-settings__read-more">
+				<div className="jp-module-settings__learn-more">
 					<Button borderless compact href={ element[3] }><Gridicon icon="help-outline" /><span className="screen-reader-text">{ __( 'Learn More' ) }</span></Button>
-					{
-						'stats' === element[0] && isModuleActive ? (
-							<span>
-								<span className="jp-module-settings__more-sep" />
-								<span className="jp-module-settings__more-text">{
-									__( 'View {{a}}All Stats{{/a}}', {
-										components: {
-											a: <a href={ props.siteAdminUrl + 'admin.php?page=stats' } />
-										}
-									} )
-								}</span>
-							</span>
-						) : ''
-					}
-					{
-						'subscriptions' === element[0] && isModuleActive ? (
-							<span>
-								<span className="jp-module-settings__more-sep" />
-								<span className="jp-module-settings__more-text">{
-									__( 'View your {{a}}Email Followers{{/a}}', {
-										components: {
-											a: <a href={ 'https://wordpress.com/people/email-followers/' + props.siteRawUrl } />
-										}
-									} )
-								}</span>
-							</span>
-						) : ''
-					}
 				</div>
+					{
+						'stats' === element[0] && isModuleActive
+							? <div className="jp-module-settings__read-more">
+								<span>
+									<span className="jp-module-settings__more-text">{
+										__( 'View {{a}}All Stats{{/a}}', {
+											components: {
+												a: <a href={ props.siteAdminUrl + 'admin.php?page=stats' } />
+											}
+										} )
+									}</span>
+								</span>
+							  </div>
+							: ''
+					}
+					{
+						'subscriptions' === element[0] && isModuleActive
+							? <div className="jp-module-settings__read-more">
+								<span>
+									<span className="jp-module-settings__more-text">{
+										__( 'View your {{a}}Email Followers{{/a}}', {
+											components: {
+												a: <a href={ 'https://wordpress.com/people/email-followers/' + props.siteRawUrl } />
+											}
+										} )
+									}</span>
+								</span>
+							  </div>
+							: ''
+					}
+
 			</FoldableCard>
 		) : false;
 	} );
